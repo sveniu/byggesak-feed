@@ -1,0 +1,41 @@
+name: Update feed
+
+on:
+  schedule:
+    - cron: "30 7,14 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  pages: write
+  id-token: write
+
+concurrency:
+  group: feed-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      - uses: actions/cache@v4
+        with:
+          path: state.json
+          key: state
+
+      - run: uv run byggesak-feed --config config.yaml
+
+      - run: mkdir _site && cp feed.xml _site/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site/
+
+      - uses: actions/deploy-pages@v4
+        id: deploy

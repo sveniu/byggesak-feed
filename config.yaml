@@ -1,0 +1,42 @@
+endpoint: "https://asker-bygg.innsynsportal.no/graphql"
+list_title: "Postliste plan- og bygg "
+state_file: "state.json"
+max_pages: 50
+
+feeds:
+  - id: "byggsaker-asker"
+    title: "Byggsaker Asker"
+    output: "feed.xml"
+    max_entries: 200
+    filters:
+      title_include:
+        - "orreleiken"
+        - "dueåsen"
+        - "snehvit"
+        - "tiurfaret"
+        - "finkefaret"
+        - "trostelia"
+        - "jerpefaret"
+        - "jutemyrveien"
+        - "borgenbråten"
+        - "pumpestasjon"
+        - "pumpehus"
+        - "overbygg"
+        - "ekspropri"
+        - "statsforvalt"
+        - "opplett"
+        - "drenering"
+      title_exclude:
+        - "saksbehandlingstid"
+      property_numbers: [6]
+      case_sequence_numbers:
+        - "24/874"
+        - "24/929"
+        - "24/2007"
+        - "23/1850"
+        - "23/2077"
+        - "24/2168"
+        - "24/2142"
+        - "328/415"
+      proceeding_journal_types:
+        - { proceeding_type: "Ulovlighetsoppfølging", journal_type: "U" }
