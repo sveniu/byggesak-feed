@@ -12,6 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   pages: write
   id-token: write
 
@@ -51,17 +52,46 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         if: steps.gate.outputs.should_run == 'true'
 
-      - uses: actions/cache@v4
+      - name: Restore state from latest successful run artifact
         if: steps.gate.outputs.should_run == 'true'
-        with:
-          path: state.json
-          key: state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          run_id=$(
+            gh run list \
+              --workflow "${{ github.workflow }}" \
+              --branch "${{ github.ref_name }}" \
+              --limit 20 \
+              --json databaseId,status,conclusion \
+              --jq '.[] | select(.status == "completed" and .conclusion == "success" and (.databaseId | tostring) != env.GITHUB_RUN_ID) | .databaseId' \
+              | head -n1
+          )
+
+          if [[ -z "$run_id" ]]; then
+            echo "No previous successful run found; starting with empty state"
+            exit 0
+          fi
+
+          rm -f state.json
+          if gh run download "$run_id" --name feed-state --dir .; then
+            echo "Restored state.json from run $run_id"
+          else
+            echo "No feed-state artifact found on run $run_id; starting with empty state"
+          fi
 
       - run: uv run byggesak-feed --config config.yaml
         if: steps.gate.outputs.should_run == 'true'
 
       - run: mkdir _site && cp feed.xml _site/
         if: steps.gate.outputs.should_run == 'true'
+
+      - uses: actions/upload-artifact@v4
+        if: steps.gate.outputs.should_run == 'true'
+        with:
+          name: feed-state
+          path: state.json
+          retention-days: 7
 
       - uses: actions/upload-pages-artifact@v3
         if: steps.gate.outputs.should_run == 'true'
