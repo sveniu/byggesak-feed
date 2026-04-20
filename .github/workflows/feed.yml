@@ -64,8 +64,7 @@ jobs:
               --branch "${{ github.ref_name }}" \
               --limit 20 \
               --json databaseId,status,conclusion \
-              --jq '.[] | select(.status == "completed" and .conclusion == "success" and (.databaseId | tostring) != env.GITHUB_RUN_ID) | .databaseId' \
-              | head -n1
+              --jq 'map(select(.status == "completed" and .conclusion == "success" and (.databaseId | tostring) != env.GITHUB_RUN_ID))[0].databaseId // empty'
           )
 
           if [[ -z "$run_id" ]]; then
