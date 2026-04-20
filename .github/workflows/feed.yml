@@ -2,7 +2,13 @@ name: Update feed
 
 on:
   schedule:
-    - cron: "30 7,14 * * 1-5"
+    # GitHub Actions cron uses UTC only. These entries are biased earlier than the
+    # desired local times because scheduled runs typically start tens of minutes
+    # late in practice. March and October include both UTC variants; a gate below
+    # keeps only the runs that actually land in the intended Oslo-time windows.
+    - cron: "55 5,11 * 4-9 1-5"
+    - cron: "55 6,12 * 1,2,11,12 1-5"
+    - cron: "55 5,6,11,12 * 3,10 1-5"
   workflow_dispatch:
 
 permissions:
@@ -20,22 +26,48 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
+      - name: Gate scheduled runs to Oslo windows
+        id: gate
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" != "schedule" ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          oslo_hm=$(TZ=Europe/Oslo date +%H:%M)
+          case "$oslo_hm" in
+            08:2[0-9]|08:[3-5][0-9]|09:0[0-5]|14:2[0-9]|14:[3-5][0-9]|15:0[0-5])
+              echo "should_run=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "should_run=false" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
       - uses: actions/checkout@v4
+        if: steps.gate.outputs.should_run == 'true'
 
       - uses: astral-sh/setup-uv@v6
+        if: steps.gate.outputs.should_run == 'true'
 
       - uses: actions/cache@v4
+        if: steps.gate.outputs.should_run == 'true'
         with:
           path: state.json
           key: state
 
       - run: uv run byggesak-feed --config config.yaml
+        if: steps.gate.outputs.should_run == 'true'
 
       - run: mkdir _site && cp feed.xml _site/
+        if: steps.gate.outputs.should_run == 'true'
 
       - uses: actions/upload-pages-artifact@v3
+        if: steps.gate.outputs.should_run == 'true'
         with:
           path: _site/
 
       - uses: actions/deploy-pages@v4
+        if: steps.gate.outputs.should_run == 'true'
         id: deploy
